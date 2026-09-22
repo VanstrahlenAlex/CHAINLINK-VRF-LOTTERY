@@ -103,8 +103,46 @@ contract Lottery is VRFConsumerBaseV2Plus {
 
 
 
-	constructor(address vrfCoordinator) VRFConsumerBaseV2Plus(vrfCoordinator) {
-    // resto de tu inicialización (ticketPrice, roundDuration, etc.) si aplica
+	/// @param vrfCoordinator Chainlink VRF V2.5 Coordinator address
+	/// @param keyHash VRF KeyHash for the network 
+	/// @param subscriptionId VRF Subscription ID for funding LINK
+	/// @param callbackGasLimit Gas limit for VRF callback
+	/// @param ticketPrice Initial ticket price
+	/// @param roundDuration Initial round duration in seconds
+	/// @param maxTicketsPerPlayer Initial maximum number of tickets per player
+	/// @param minPlayers Initial minimum number of players required
+	/// @param protocolFeeBps Initial protocol fee in basis points (max 1000 for 10%)
+
+	constructor(
+		address vrfCoordinator,
+		bytes32 keyHash,
+		uint256 subscriptionId,
+		uint32 callbackGasLimit,
+		uint256 ticketPrice,
+		uint256 roundDuration,
+		uint256 maxTicketsPerPlayer,
+		uint256 minPlayers,
+		uint16 protocolFeeBps
+		) VRFConsumerBaseV2Plus(vrfCoordinator) {
+			if(ticketPrice == 0) revert Lottery__InvalidTicketPrice();
+			if(roundDuration == 0) revert Lottery__InvalidRoundDuration();
+			if(maxTicketsPerPlayer == 0) revert Lottery__InvalidMaxTickets();
+			if(minPlayers == 0) revert Lottery__InvalidMinPlayers();
+			if(protocolFeeBps > MAX_PROTOCOL_FEE_BPS) revert Lottery__InvalidProtocolFee();
+			
+			i_keyHash = keyHash;
+			i_subscriptionId = subscriptionId;
+			i_callbackGasLimit = callbackGasLimit;
+
+			s_config = LotteryConfig(
+				ticketPrice,
+				roundDuration,
+				maxTicketsPerPlayer,
+				minPlayers,
+				protocolFeeBps
+			);
+			s_currentRoundId = 1;
+
 	}
 
 	function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
