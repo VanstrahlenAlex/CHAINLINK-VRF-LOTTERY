@@ -26,7 +26,7 @@ contract Lottery is VRFConsumerBaseV2Plus {
 		uint256 roundDuration;
 		uint256 maxTicketsPerPlayer;
 		uint256 minPlayers;
-		uint256 protocolFeeBps; //Basis points, max 1000 (10%) 
+		uint16 protocolFeeBps; //Basis points, max 1000 (10%) 
 	}
 
 	struct Round {
@@ -144,11 +144,96 @@ contract Lottery is VRFConsumerBaseV2Plus {
 			s_currentRoundId = 1;
 
 	}
+	//_____________________________________________________
+	// External - Owner Admin
+	//_____________________________________________________
 
-	function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
-		// TODO: usar randomWords para elegir a los 3 ganadores de la ronda
-		// asociada a este requestId, calcular payouts (50/30/20) y actualizar
-		// el estado del Round correspondiente.
+
+
+
+	//_____________________________________________________
+	// External - Owner Admin
+	//_____________________________________________________
+
+	/// @notice Update ticket price for future rounds
+	function setTicketPrice(uint256 newPrice) external onlyOwner {
+		if(newPrice == 0) revert Lottery__InvalidTicketPrice();
+		s_config.ticketPrice = newPrice;
+		_emitConfigUpdated();
+	}
+
+	/// @notice Update ticket price for future rounds
+	function setRoundDuration(uint256 newDuration) external onlyOwner {
+		if (newDuration == 0) revert Lottery__InvalidRoundDuration();
+		s_config.roundDuration = newDuration;
+		_emitConfigUpdated();
+	}
+
+	/// @notice Update ticket price for future rounds
+	function setMaxTicketsPerPlayer(uint256 newMaxTickets) external onlyOwner {
+		if (newMaxTickets == 0) revert Lottery__InvalidMaxTickets();
+		s_config.maxTicketsPerPlayer = newMaxTickets;
+		_emitConfigUpdated();
+	}
+
+	/// @notice Update ticket price for future rounds
+	function setMinPlayers(uint256 newMinPlayers) external onlyOwner {
+		if (newMinPlayers == 0) revert Lottery__InvalidMinPlayers();
+		s_config.minPlayers = newMinPlayers;
+		_emitConfigUpdated();
+	}
+
+	/// @notice Update ticket price for future rounds
+	function setProtocolFeeBps(uint16 newProtocolFeeBps) external onlyOwner {
+		if (newProtocolFeeBps > MAX_PROTOCOL_FEE_BPS) revert Lottery__InvalidProtocolFee();
+		s_config.protocolFeeBps = newProtocolFeeBps;
+		_emitConfigUpdated();
+	}
+
+	//_____________________________________________________
+	// External - View 
+	//_____________________________________________________
+
+	function getRound(uint256 roundId) external view returns(Round memory) {
+		return s_rounds[roundId];
+	}
+
+	function getCurrentRoundId() external view returns (uint256) {
+		return s_currentRoundId;
+	}
+
+	function getConfig() external view returns (LotteryConfig memory) {
+		return s_config;
+	}
+
+	function getAccumulatedFees() external view returns (uint256) {
+		return s_accumulatedFees;
+	}
+
+	function getPlayerTickets(uint256 roundId, address player) external view returns (uint256) {
+		return s_playerTickets[roundId][player];
+	}
+
+	function getRoundPlayers(uint256 roundId) external view returns (address[] memory) {
+		return s_rounds[roundId].players;
+	}
+
+	function getRoundUniquePlayers(uint256 roundId) external view returns (address[] memory) {
+		return s_rounds[roundId].uniquePlayers;
+	}
+
+	function getRoundWinners(uint256 roundId) external view returns (address[3] memory){
+		return s_rounds[roundId].winners;
+	}
+
+	function getRoundPayouts(uint256 roundId) external view returns (uint256[3] memory){
+		return s_rounds[roundId].payouts;
+	}
+
+
+	function _emitConfigUpdated() private {
+		LotteryConfig memory cfg = s_config; 
+		emit ConfigUpdated(cfg.ticketPrice, cfg.roundDuration, cfg.maxTicketsPerPlayer, cfg.minPlayers, cfg.protocolFeeBps);
 	}
 
 }
