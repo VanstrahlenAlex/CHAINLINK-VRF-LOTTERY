@@ -88,6 +88,18 @@ contract Lottery is VRFConsumerBaseV2Plus {
 	uint16 private constant FIRST_PLACE_BPS = 50_00; // 50;
 	uint16 private constant SECOND_PLACE_BPS = 30_00; // 30; 
 
+	//VRF VARIABLES 
+	bytes32 private immutable i_keyHash;
+	uint256 private immutable i_subscriptionId;
+	uint32 private immutable i_callbackGasLimit;
+	
+	LotteryConfig private s_config;
+	uint256 private s_currentRoundId;
+	uint256 private s_accumulatedFees;
+
+	mapping(uint256 roundId => Round) private s_rounds;
+	mapping(uint256 vrfRequestId => uint256 roundId) private s_vrfRequestToRound;
+	mapping(uint256 roundId => mapping(address player => uint256 tickets)) private s_playerTickets;   
 
 
 
