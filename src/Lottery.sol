@@ -145,9 +145,30 @@ contract Lottery is VRFConsumerBaseV2Plus {
 
 	}
 	//_____________________________________________________
-	// External - Owner Admin
+	// External - CORE
 	//_____________________________________________________
 
+	function startNewRound() external onlyOwner() {
+		if(s_currentRoundId > 0){
+			Round storage prev = s_rounds[s_currentRoundId];
+			if(prev.state != RoundState.CLOSED) revert Lottery__PreviousRoundNotClosed();			
+		}
+
+		s_currentRoundId++;
+		uint256 roundId = s_currentRoundId;
+		LotteryConfig memory cfg = s_config;
+
+		Round storage r = s_rounds[roundId];
+		r.state = RoundState.OPEN;
+		r.startTime = block.timestamp;
+		r.endTime = block.timestamp + cfg.roundDuration;
+		r.ticketPrice = cfg.ticketPrice;
+		r.maxticketsPerPlayer = cfg.maxTicketsPerPlayer;
+		r.minPlayers = cfg.minPlayers;
+		r.protocolFeeBps = cfg.protocolFeeBps;
+
+		emit RoundStarted(roundId, r.startTime, r.endTime, r.ticketPrice);
+	}
 
 
 
