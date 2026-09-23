@@ -205,8 +205,27 @@ contract Lottery is VRFConsumerBaseV2Plus {
 			(bool ok, ) = msg.sender.call{value: excess}("");
 			require(ok, "Transfer Failed. Please request a refund.");			
 		}
+	}
+
+	/// @notice Claim a refund for a cancelled round (not enough players)
+	/// @param roundId The refunded round
+	function claimRefund(uint256 roundId) external {
+		Round storage r = s_rounds[roundId];
 		
-		
+		if(!r.refunded) revert Lottery__NoRefundAvailable();
+
+		uint256 tickets = s_playerTickets[roundId][msg.sender];
+		if (tickets == 0) revert Lottery__NoRefundAvailable();
+
+		uint256 refundAmount = tickets * r.ticketPrice;
+
+		s_playerTickets[roundId][msg.sender] = 0;
+
+		(bool ok, ) = msg.sender.call{value: refundAmount}("");
+		require(ok, "Transfer failed");
+
+		emit RefundClaimed(roundId, msg.sender, refundAmount);
+
 
 	}
 
