@@ -251,6 +251,18 @@ contract Lottery is VRFConsumerBaseV2Plus {
 		_emitConfigUpdated();
 	}
 
+	function withdrawFees(address to) external onlyOwner {
+		uint256 amount = s_accumulatedFees;
+		if (amount == 0) revert Lottery__NothingToWithdraw();
+		
+		s_accumulatedFees = 0;
+		(bool ok, ) = to.call{value: amount}("");
+		require(ok, "Transfer Failed. Please withdraw manually.");
+
+		emit FeesWithdrawn(to, amount);
+
+	}
+
 	//_____________________________________________________
 	// External - View 
 	//_____________________________________________________
