@@ -34,7 +34,7 @@ contract Lottery is VRFConsumerBaseV2Plus {
 		uint256 startTime;
 		uint256 endTime;
 		uint256 ticketPrice;
-		uint256 maxticketsPerPlayer;
+		uint256 maxTicketsPerPlayer;
 		uint256 minPlayers;
 		uint16 protocolFeeBps;
 		uint256 prizePool;
@@ -163,11 +163,51 @@ contract Lottery is VRFConsumerBaseV2Plus {
 		r.startTime = block.timestamp;
 		r.endTime = block.timestamp + cfg.roundDuration;
 		r.ticketPrice = cfg.ticketPrice;
-		r.maxticketsPerPlayer = cfg.maxTicketsPerPlayer;
+		r.maxTicketsPerPlayer = cfg.maxTicketsPerPlayer;
 		r.minPlayers = cfg.minPlayers;
 		r.protocolFeeBps = cfg.protocolFeeBps;
 
 		emit RoundStarted(roundId, r.startTime, r.endTime, r.ticketPrice);
+	}
+
+	function buyTickets(uint256 quantity) external payable {
+		if(quantity == 0) revert Lottery__ZeroTickets();
+		
+		uint256 roundId = s_currentRoundId;
+		Round storage r = s_rounds[roundId];
+
+		if(r.state != RoundState.OPEN) revert Lottery__RoundNotOpen(roundId);
+		if(block.timestamp >= r.endTime) revert Lottery__RoundNotOpen(roundId);
+
+		uint256 totalCost = r.ticketPrice * quantity;
+		if(msg.value < totalCost) revert Lottery__InsufficientPayment(msg.value, totalCost);
+
+		uint256 currentTickets = s_playerTickets[roundId][msg.sender];
+		if(currentTickets + quantity > r.maxTicketsPerPlayer) revert Lottery__MaxTicketsExceeded(currentTickets + quantity, r.maxTicketsPerPlayer);
+		
+		if(currentTickets == 0){
+			r.uniquePlayers.push(msg.sender);
+
+		}
+
+		s_playerTickets[roundId][msg.sender] = currentTickets + quantity;
+		
+		for(uint256 i; i < quantity; i++){
+			r.players.push(msg.sender);
+		}
+		
+		r.prizePool += totalCost;
+		
+		emit TicketsPurchased(roundId, msg.sender, quantity, currentTickets + quantity);
+
+		uint256 excess = msg.value - totalCost;
+		if (excess > 0) {
+			(bool ok, ) = msg.sender.call{value: excess}("");
+			require(ok, "Transfer Failed. Please request a refund.");			
+		}
+		
+		
+
 	}
 
 
