@@ -260,6 +260,45 @@ contract Lottery is VRFConsumerBaseV2Plus {
 		
 	}
 
+	function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
+		uint256 roundId = s_vrfRequestToRound[requestId];
+		Round storage r = s_rounds[roundId];
+
+		uint256 totalPool = r.prizePool; 
+		uint256 protocolFee = (totalPool * r.protocolFeeBps) / 10_000;
+		uint256 distributablePool = totalPool - protocolFee;
+
+		s_accumulatedFees += protocolFee;
+		r.protocolFeeCollected = protocolFee; 
+
+		uint256 numUniquePlayers = r.uniquePlayers.length;
+		uint256 numWinners = numUniquePlayers < 3 ? numUniquePlayers : 3;
+
+		address[] memory selected = _selectUniqueWinners(r.players, randomWords, numWinners);
+
+		uint256[3] memory payouts; 
+
+		if(numWinners = 1) {
+			payouts[0] = distributablePool;
+		} else if (numWinners == 2) {
+			payouts[0] = (distributablePool * 6000) / 10_000; // 60%
+			payouts[1] = distributablePool - payouts[0]; // 40%
+		} else {
+			payouts[0] = (distributablePool * FIRST_PLACE_BPS) / 10_000; // 50%
+			payouts[1] = (distributablePool * SECOND_PLACE_BPS) / 10_000; // 30%
+			payouts[2] = distributablePool - payouts[0] - payouts[1]; // 20% (remainder avoids dust)
+		}
+
+		for(uint256 i; i < numWinners; i++) {
+			r.winners[i] = selected[i];
+		}
+		r.payouts = payouts;
+		r.state = RoundState.CLOSED;
+
+		emit ProtocolFeeCollected(roundId, protocolFee);
+		
+	}
+
 
 
 	//_____________________________________________________
