@@ -84,7 +84,7 @@ contract Lottery is VRFConsumerBaseV2Plus {
 
 	uint16 private constant MAX_PROTOCOL_FEE_BPS = 1000; // 10% 
 	uint16 private constant REQUEST_CONFIRMATIONS = 3;
-	uint32 private constant NUM_WORD = 3;
+	uint32 private constant NUM_WORDS = 3;
 	uint16 private constant FIRST_PLACE_BPS = 50_00; // 50;
 	uint16 private constant SECOND_PLACE_BPS = 30_00; // 30; 
 
@@ -225,8 +225,39 @@ contract Lottery is VRFConsumerBaseV2Plus {
 		require(ok, "Transfer failed");
 
 		emit RefundClaimed(roundId, msg.sender, refundAmount);
+	}
 
+	function requestDraw(uint256 roundId) external {
+		Round storage r = s_rounds[roundId];
 
+		if (r.state != RoundState.OPEN) revert Lottery__RoundNotOpen(roundId);
+		if (block.timestamp < r.endTime) revert Lottery__RoundNotOpen(roundId);
+		
+		if(r.uniquePlayers.length < r.minPlayers) {
+			r.state = RoundState.CLOSED;
+			r.refunded = true; 
+			emit RoundRefunded(roundId, r.uniquePlayers.length);
+			return;
+		}
+		r.state = RoundState.CALCULATING;
+
+		uint256 requestId = s_vrfCoordinator.requestRandomWords(
+			
+			VRFV2PlusClient.RandomWordsRequest({
+				keyHash: i_keyHash, 
+				subId : i_subscriptionId, 
+				requestConfirmations: REQUEST_CONFIRMATIONS,
+				callbackGasLimit: i_callbackGasLimit, 
+				numWords: NUM_WORDS,
+				extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
+			})
+		);
+
+		r.vrfRequestId = requestId;
+		s_vrfRequestToRound[requestId] = roundId;
+
+		emit DrawRequested(roundId, requestId);
+		
 	}
 
 
