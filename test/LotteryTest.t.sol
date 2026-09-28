@@ -20,7 +20,7 @@ contract LotteryTest is Test {
 	bytes32 constant KEY_HASH = bytes32(uint256(1));
 	uint32 constant CALLBACK_GAS_LIMIT = 500_000;
 	uint256 constant TICKET_PRICE = 0.01 ether;
-	uint256 constant ROUND_DURATIO = 1 hours;
+	uint256 constant ROUND_DURATION = 1 hours;
 	uint256 constant MAX_TICKETS_PER_PLAYER = 10;
 	uint256 constant MIN_PLAYER = 3;
 	uint16 constant PROTOCOL_FEE_BPS = 500;
@@ -39,6 +39,45 @@ contract LotteryTest is Test {
 
 
 	uint256 subscriptionId; 
+	
+	function setUp() public {
+		// 1. Deploy VRF Coordinator Mock 
+		vrfCoordinatorMock = new VRFCoordinatorV2_5Mock(MOCK_BASE_FEE, MOCK_GAS_PRICE, MOCK_WEI_PER_UNIT_LINK);
+
+		// 2.Create & fund subscription
+		subscriptionId = vrfCoordinatorMock.createSubscription();
+		vrfCoordinatorMock.fundSubscription(subscriptionId, 1000 ether);
+
+
+		// 3.Deploy Lottery
+		vm.prank(OWNER);
+		lottery = new Lottery(address(vrfCoordinatorMock),
+			 KEY_HASH, 
+			 subscriptionId,
+			 CALLBACK_GAS_LIMIT,
+			 TICKET_PRICE,
+			 ROUND_DURATION,
+			 MAX_TICKETS_PER_PLAYER,
+			 MIN_PLAYER,
+			 PROTOCOL_FEE_BPS
+			 );
+
+		// 4. Register Lottery as VRF consumer
+		vrfCoordinatorMock.addConsumer(subscriptionId, address(lottery));
+
+		// 5. Fund Players with TEST ETH
+		vm.deal(PLAYER_1, 10 ether);
+		vm.deal(PLAYER_2, 10 ether);
+		vm.deal(PLAYER_3, 10 ether);
+		vm.deal(PLAYER_4, 10 ether);
+		vm.deal(PLAYER_5, 10 ether);
+		vm.deal(PLAYER_6, 10 ether);
+		vm.deal(PLAYER_7, 10 ether);
+		vm.deal(PLAYER_8, 10 ether);
+		vm.deal(PLAYER_9, 10 ether);
+		vm.deal(PLAYER_10, 10 ether);
+	}
+
 	
 
 }
