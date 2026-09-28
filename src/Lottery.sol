@@ -297,6 +297,34 @@ contract Lottery is VRFConsumerBaseV2Plus {
 
 		emit ProtocolFeeCollected(roundId, protocolFee);
 		
+		for (uint256 i; i < numWinners; ++i) {
+			(bool ok, ) = payable(r.winners[i]).call{value: payouts[i]}("");
+			if (!ok) revert Lottery__TransferFailed(r.winners[i], payouts[i]);
+		}
+
+		emit WinnersSelected(roundId, selected, payouts);
+	}
+
+	/// @dev Select `numWinners` unique winners from the ticket pool
+	/// Each random word is used as a seed. If a collision occurs (same player already selected), re-hash with an incrementing nonce until a unique player is found. 
+	/// More tickets = more entries = higher probability of being selected
+	function _selectUniqueWinners(
+		address[] storage tickets,
+		uint256[] calldata randomWords,
+		uint256 numWinners
+	) internal view returns (address[] memory winners ){
+		winners = new address[](numWinners);
+		uint256 totalTickets = tickets.length;
+
+		for(uint256 i; i < numWinners; i++) {
+			uint256 seed = randomWords[i];
+			address selected;
+			uint256 attempts;
+
+			// Use a generous attempt limit to handle small pools. 
+			//With keccak256 re-hashing, collisions resolve quickly. 
+			uint256 maxAttempts = totalTickets * 10;
+		}
 	}
 
 
