@@ -141,7 +141,7 @@ contract Lottery is VRFConsumerBaseV2Plus {
 				minPlayers,
 				protocolFeeBps
 			);
-			s_currentRoundId = 1;
+			s_currentRoundId = 0;
 
 	}
 	//_____________________________________________________
@@ -278,7 +278,7 @@ contract Lottery is VRFConsumerBaseV2Plus {
 
 		uint256[3] memory payouts; 
 
-		if(numWinners = 1) {
+		if(numWinners == 1) {
 			payouts[0] = distributablePool;
 		} else if (numWinners == 2) {
 			payouts[0] = (distributablePool * 6000) / 10_000; // 60%
@@ -302,7 +302,7 @@ contract Lottery is VRFConsumerBaseV2Plus {
 			if (!ok) revert Lottery__TransferFailed(r.winners[i], payouts[i]);
 		}
 
-		emit WinnersSelected(roundId, selected, payouts);
+		emit WinnersSelected(roundId, r.winners, payouts);
 	}
 
 	/// @dev Select `numWinners` unique winners from the ticket pool
@@ -324,7 +324,37 @@ contract Lottery is VRFConsumerBaseV2Plus {
 			// Use a generous attempt limit to handle small pools. 
 			//With keccak256 re-hashing, collisions resolve quickly. 
 			uint256 maxAttempts = totalTickets * 10;
+
+			while (attempts < maxAttempts) {
+				address candidate = tickets[seed % totalTickets];
+				if (!_contains(winners, i, candidate)) {
+					selected = candidate;
+					break;
+				}
+				seed = uint256(keccak256(abi.encode(seed, attempts)));
+				attempts++;
+			}
+
+			// Deterministic fallback: first ticket holder not yet selected
+			if (selected == address(0)) {
+				for (uint256 j; j < totalTickets; j++) {
+					if (!_contains(winners, i, tickets[j])) {
+						selected = tickets[j];
+						break;
+					}
+				}
+			}
+
+			winners[i] = selected;
 		}
+	}
+
+	/// @dev True if `player` is among the first `length` entries of `list`
+	function _contains(address[] memory list, uint256 length, address player) private pure returns (bool) {
+		for (uint256 i; i < length; i++) {
+			if (list[i] == player) return true;
+		}
+		return false;
 	}
 
 
